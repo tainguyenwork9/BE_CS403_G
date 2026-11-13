@@ -97,7 +97,7 @@ class DatabaseSeeder extends Seeder
 
     protected function seedBulkCustomers(): void
     {
-        for ($index = 43; $index <= 202; $index++) {
+        for ($index = 43; $index <= 50; $index++) {
             $number = str_pad((string) $index, 3, '0', STR_PAD_LEFT);
             $taiKhoan = TaiKhoan::query()->where('tenDangNhap', 'khach' . $number)->first();
 
@@ -106,7 +106,7 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        for ($index = 3; $index <= 42; $index++) {
+        for ($index = 3; $index <= 10; $index++) {
             $number = str_pad((string) $index, 3, '0', STR_PAD_LEFT);
             $taiKhoan = TaiKhoan::query()->firstOrCreate(
                 ['tenDangNhap' => 'khach' . $number],
@@ -183,7 +183,7 @@ class DatabaseSeeder extends Seeder
     {
         $defaultDocumentImage = 'https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=800&q=80';
 
-        for ($index = 3; $index <= 42; $index++) {
+        for ($index = 3; $index <= 10; $index++) {
             $number = str_pad((string) $index, 3, '0', STR_PAD_LEFT);
             $taiKhoan = TaiKhoan::query()->where('tenDangNhap', 'khach' . $number)->firstOrFail();
             $khachHang = $taiKhoan->khachHang()->firstOrFail();

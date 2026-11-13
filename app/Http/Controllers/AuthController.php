@@ -4,70 +4,39 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
-use App\Models\KhachHang;
-use App\Models\TaiKhoan;
+use App\Services\AuthService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly AuthService $authService
+    ) {}
+
     public function register(RegisterRequest $request)
     {
-        $data = $request->validated();
+        $result = $this->authService->register($request->validated());
+        $code = $result['code'];
+        unset($result['code']);
 
-        $taiKhoan = TaiKhoan::create([
-            'tenDangNhap' => $data['tenDangNhap'],
-            'matKhau' => Hash::make($data['matKhau']),
-            'vaiTro' => 'khach_hang',
-            'trangThai' => true,
-        ]);
-
-        $khachHang = KhachHang::create([
-            'maTaiKhoan' => $taiKhoan->maTaiKhoan,
-            'hoTen' => $data['hoTen'],
-            'soDienThoai' => $data['soDienThoai'],
-            'email' => $data['email'],
-        ]);
-
-        $token = $taiKhoan->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Đăng ký tài khoản thành công.',
-            'user' => [
-                'maTaiKhoan' => $taiKhoan->maTaiKhoan,
-                'tenDangNhap' => $taiKhoan->tenDangNhap,
-                'vaiTro' => $taiKhoan->vaiTro,
-                'trangThai' => $taiKhoan->trangThai,
-                'khachHang' => $khachHang,
-            ],
-            'token' => $token,
-        ], 201);
+        return response()->json($result, $code);
     }
 
     public function login(LoginRequest $request)
     {
-        $credentials = $request->validated();
+        $result = $this->authService->login($request->validated());
+        $code = $result['code'];
+        unset($result['code']);
 
-        $taiKhoan = TaiKhoan::where('tenDangNhap', $credentials['tenDangNhap'])->first();
+        return response()->json($result, $code);
+    }
 
-        if (! $taiKhoan || ! Hash::check($credentials['matKhau'], $taiKhoan->matKhau)) {
-            return response()->json([
-                'message' => 'Tên đăng nhập hoặc mật khẩu không đúng.',
-            ], 401);
-        }
+    public function logout(Request $request)
+    {
+        $result = $this->authService->logout($request->user());
+        $code = $result['code'];
+        unset($result['code']);
 
-        $token = $taiKhoan->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Đăng nhập thành công.',
-            'user' => [
-                'maTaiKhoan' => $taiKhoan->maTaiKhoan,
-                'tenDangNhap' => $taiKhoan->tenDangNhap,
-                'vaiTro' => $taiKhoan->vaiTro,
-                'trangThai' => $taiKhoan->trangThai,
-                'khachHang' => $taiKhoan->khachHang,
-            ],
-            'token' => $token,
-        ]);
+        return response()->json($result, $code);
     }
 }

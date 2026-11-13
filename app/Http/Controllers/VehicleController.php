@@ -2,63 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Xe;
-use Illuminate\Http\Request;
+use App\Http\Requests\SearchVehicleRequest;
+use App\Services\VehicleService;
 
 class VehicleController extends Controller
 {
-    public function index(Request $request)
+    public function __construct(
+        private readonly VehicleService $vehicleService
+    ) {}
+
+    public function index(SearchVehicleRequest $request)
     {
-        $query = Xe::query()->where(function ($q) {
-            $q->where('tinhTrang', 'san_sang')->orWhere('tinhTrang', 'Sẵn sàng');
-        });
+        $result = $this->vehicleService->searchVehicles($request->validated());
+        $code = $result['code'];
+        unset($result['code']);
 
-        if ($request->filled('loaiXe')) {
-            $query->where('loaiXe', 'like', '%' . $request->loaiXe . '%');
-        }
-
-        if ($request->filled('hangXe')) {
-            $query->where('hangXe', 'like', '%' . $request->hangXe . '%');
-        }
-
-        if ($request->filled('giaThue_min')) {
-            $query->where('giaThue', '>=', (float) $request->giaThue_min);
-        }
-
-        if ($request->filled('giaThue_max')) {
-            $query->where('giaThue', '<=', (float) $request->giaThue_max);
-        }
-
-        $vehicles = $query->orderBy('maXe', 'asc')->get()->map(function ($vehicle) {
-            $payload = $vehicle->toArray();
-            $payload['maXe'] = 'MX' . str_pad((string) $vehicle->maXe, 3, '0', STR_PAD_LEFT);
-            $payload['tinhTrang'] = $payload['tinhTrang'] === 'san_sang' ? 'Sẵn sàng' : $payload['tinhTrang'];
-
-            return $payload;
-        });
-
-        return response()->json([
-            'data' => $vehicles,
-        ]);
+        return response()->json($result, $code);
     }
 
     public function show($maXe)
     {
-        $normalized = preg_replace('/^MX0*/', '', $maXe, 1);
-        $vehicle = Xe::where('maXe', (int) $normalized)->first();
+        $result = $this->vehicleService->getVehicleDetail($maXe);
+        $code = $result['code'];
+        unset($result['code']);
 
-        if (! $vehicle) {
-            return response()->json([
-                'message' => 'Không tìm thấy xe.',
-            ], 404);
-        }
-
-        $payload = $vehicle->toArray();
-        $payload['maXe'] = 'MX' . str_pad((string) $vehicle->maXe, 3, '0', STR_PAD_LEFT);
-        $payload['tinhTrang'] = $payload['tinhTrang'] === 'san_sang' ? 'Sẵn sàng' : $payload['tinhTrang'];
-
-        return response()->json([
-            'data' => $payload,
-        ]);
+        return response()->json($result, $code);
     }
 }
