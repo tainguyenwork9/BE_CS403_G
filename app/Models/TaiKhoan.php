@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -39,5 +40,10 @@ class TaiKhoan extends Authenticatable
     public function khachHang(): HasOne
     {
         return $this->hasOne(KhachHang::class, 'maTaiKhoan', 'maTaiKhoan');
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class, 'user_id', 'maTaiKhoan');
     }
 }
