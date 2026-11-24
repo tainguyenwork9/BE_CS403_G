@@ -24,6 +24,7 @@ class Booking extends Model
         'status',
         'transfer_code',
         'expires_at',
+        'ghi_chu',
     ];
 
     protected $casts = [

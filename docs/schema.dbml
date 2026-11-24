@@ -63,9 +63,10 @@ Table bookings {
   end_date datetime [not null, note: 'Thời gian kết thúc thuê']
   options json [null, note: 'Các tùy chọn đi kèm khi thuê xe']
   total_amount double [not null, note: 'Tổng số tiền cần thanh toán (AMOUNT)']
-  status varchar(50) [not null, default: 'PENDING_PAYMENT', note: 'Trạng thái đơn: PENDING_PAYMENT, CONFIRMED, PAID, PAYMENT_MISMATCH, CANCELLED, EXPIRED']
+  status varchar(50) [not null, default: 'PENDING_PAYMENT', note: 'Trạng thái đơn: PENDING_PAYMENT, PAID, CONFIRMED, IN_PROGRESS, COMPLETED, PAYMENT_MISMATCH, CANCELLED, EXPIRED']
   transfer_code varchar(100) [unique, not null, note: 'Mã nội dung chuyển khoản duy nhất (DESCRIPTION), VD: THUEXE_{id}']
   expires_at timestamp [null, note: 'Thời điểm hết hạn thanh toán (Countdown 15 phút)']
+  ghi_chu text [null, note: 'Ghi chú hủy đơn / mức hoàn tiền dự kiến / ghi chú nhân viên vận hành']
   created_at timestamp [null]
   updated_at timestamp [null]
 }
