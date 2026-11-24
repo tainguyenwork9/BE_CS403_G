@@ -2,43 +2,74 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\UpdateProfileStatusRequest;
-use App\Services\AdminProfileService;
+use App\Models\HoSoXacThuc;
+use Illuminate\Http\Request;
 
 class AdminProfileController extends Controller
 {
-    public function __construct(
-        private readonly AdminProfileService $adminProfileService
-    ) {}
-
     public function getProfiles()
     {
-        $result = $this->adminProfileService->getProfiles();
-        $code = $result['code'];
-        unset($result['code']);
+        $data = HoSoXacThuc::join('khach_hangs', 'ho_so_xac_thucs.maKhachHang', '=', 'khach_hangs.maKhachHang')
+            ->select(
+                'ho_so_xac_thucs.*',
+                'khach_hangs.hoTen',
+                'khach_hangs.soDienThoai',
+                'khach_hangs.email'
+            )
+            ->orderBy('ho_so_xac_thucs.maHoSo', 'desc')
+            ->get();
 
-        return response()->json($result, $code);
+        return response()->json([
+            'status' => 1,
+            'data' => $data,
+        ], 200);
     }
 
     public function getPendingProfiles()
     {
-        $result = $this->adminProfileService->getPendingProfiles();
-        $code = $result['code'];
-        unset($result['code']);
+        $data = HoSoXacThuc::join('khach_hangs', 'ho_so_xac_thucs.maKhachHang', '=', 'khach_hangs.maKhachHang')
+            ->where('ho_so_xac_thucs.trangThai', 'cho_duyet')
+            ->select(
+                'ho_so_xac_thucs.*',
+                'khach_hangs.hoTen',
+                'khach_hangs.soDienThoai',
+                'khach_hangs.email'
+            )
+            ->orderBy('ho_so_xac_thucs.maHoSo', 'desc')
+            ->get();
 
-        return response()->json($result, $code);
+        return response()->json([
+            'status' => 1,
+            'data' => $data,
+        ], 200);
     }
 
-    public function updateStatus(UpdateProfileStatusRequest $request)
+    public function updateStatus(Request $request)
     {
-        $validated = $request->validated();
-        $result = $this->adminProfileService->updateStatus(
-            (int) $validated['maHoSo'],
-            $validated['action']
-        );
-        $code = $result['code'];
-        unset($result['code']);
+        $profile = HoSoXacThuc::find($request->maHoSo);
+        if (! $profile) {
+            return response()->json([
+                'status' => 0,
+                'message' => 'Không tìm thấy hồ sơ xác thực.',
+            ], 404);
+        }
 
-        return response()->json($result, $code);
+        $trangThai = $request->action === 'duyet' ? 'da_duyet' : 'tu_choi';
+        $ngayXacThuc = $request->action === 'duyet' ? now() : null;
+
+        HoSoXacThuc::where('maHoSo', $request->maHoSo)->update([
+            'trangThai' => $trangThai,
+            'ngayXacThuc' => $ngayXacThuc,
+        ]);
+
+        $profile = HoSoXacThuc::find($request->maHoSo);
+
+        return response()->json([
+            'status' => 1,
+            'data' => $profile,
+            'message' => $request->action === 'duyet'
+                ? 'Hồ sơ đã được duyệt.'
+                : 'Hồ sơ đã bị từ chối.',
+        ], 200);
     }
 }
