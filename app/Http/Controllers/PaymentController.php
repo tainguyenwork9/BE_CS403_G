@@ -86,12 +86,16 @@ class PaymentController extends Controller
                 ];
             }
 
-            // 3. Kiểm tra đơn đã hết hạn thanh toán hay chưa
+            // 3. Kiểm tra đơn đã hết hạn thanh toán hoặc quá thời gian trả xe hay chưa
             if (
                 $booking->status === 'EXPIRED' ||
-                ($booking->status === 'PENDING_PAYMENT' && $booking->expires_at && now()->greaterThan($booking->expires_at))
+                ($booking->status === 'PENDING_PAYMENT' && $booking->expires_at && now()->greaterThan($booking->expires_at)) ||
+                (in_array($booking->status, ['PENDING_PAYMENT', 'PAYMENT_MISMATCH', 'PAID', 'CONFIRMED'], true) && $booking->end_date && now()->greaterThan($booking->end_date))
             ) {
-                Booking::where('id', $booking->id)->update(['status' => 'EXPIRED']);
+                Booking::where('id', $booking->id)->update([
+                    'status' => 'EXPIRED',
+                    'ghi_chu' => $booking->ghi_chu ?: 'Đơn đã quá thời gian quy định nên tự động hết hạn.',
+                ]);
                 $booking = Booking::find($booking->id);
 
                 $tx = PaymentTransaction::create([

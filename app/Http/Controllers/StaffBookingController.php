@@ -26,11 +26,8 @@ class StaffBookingController extends Controller
 
     public function index(Request $request)
     {
-        // Tự động chuyển các đơn chờ thanh toán đã quá hạn sang EXPIRED
-        Booking::where('status', 'PENDING_PAYMENT')
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<', now())
-            ->update(['status' => 'EXPIRED']);
+        // Tự động hết hạn các đơn quá hạn thanh toán hoặc quá thời gian trả xe mà chưa duyệt/bàn giao
+        $this->expireOverdueBookings();
 
         $query = Booking::leftJoin('xes', 'bookings.car_id', '=', 'xes.maXe')
             ->leftJoin('tai_khoans', 'bookings.user_id', '=', 'tai_khoans.maTaiKhoan')
@@ -138,12 +135,36 @@ class StaffBookingController extends Controller
                 ];
             }
 
-            if (in_array($booking->status, ['COMPLETED', 'CANCELLED', 'EXPIRED'], true) && $booking->status !== $newStatus) {
+            $isOverdueUnapproved = in_array($booking->status, ['PENDING_PAYMENT', 'PAYMENT_MISMATCH', 'PAID', 'CONFIRMED'], true)
+                && $booking->end_date
+                && now()->greaterThan($booking->end_date);
+
+            $isOverduePayment = $booking->status === 'PENDING_PAYMENT'
+                && $booking->expires_at
+                && now()->greaterThan($booking->expires_at);
+
+            if ($isOverdueUnapproved || $isOverduePayment) {
+                Booking::where('id', $booking->id)->update([
+                    'status' => 'EXPIRED',
+                    'ghi_chu' => $booking->ghi_chu ?: 'Đơn đã quá thời gian trả xe nhưng chưa được duyệt/bàn giao nên tự động hết hạn.',
+                ]);
+                $this->releaseCarIfNoActiveBooking($booking->car_id, $booking->id);
+
                 return [
                     'code' => 409,
                     'body' => [
                         'status' => 0,
-                        'message' => 'Đơn đặt xe đã kết thúc (' . $booking->status . '), không thể chuyển sang trạng thái ' . $newStatus . '.',
+                        'message' => 'Đơn đặt xe đã quá thời gian quy định và tự động chuyển sang Hết hạn (EXPIRED), không thể thao tác thêm.',
+                    ],
+                ];
+            }
+
+            if (in_array($booking->status, ['COMPLETED', 'CANCELLED', 'EXPIRED'], true)) {
+                return [
+                    'code' => 409,
+                    'body' => [
+                        'status' => 0,
+                        'message' => 'Đơn đặt xe đã kết thúc (' . $booking->status . '), không thể thao tác thêm.',
                     ],
                 ];
             }
@@ -211,6 +232,49 @@ class StaffBookingController extends Controller
         });
 
         return response()->json($result['body'], $result['code']);
+    }
+
+    private function expireOverdueBookings(): void
+    {
+        $overdueBookings = Booking::where(function ($q) {
+            $q->where(function ($q1) {
+                $q1->where('status', 'PENDING_PAYMENT')
+                    ->whereNotNull('expires_at')
+                    ->where('expires_at', '<', now());
+            })->orWhere(function ($q2) {
+                $q2->whereIn('status', ['PENDING_PAYMENT', 'PAYMENT_MISMATCH', 'PAID', 'CONFIRMED'])
+                    ->whereNotNull('end_date')
+                    ->where('end_date', '<', now());
+            });
+        })->get();
+
+        foreach ($overdueBookings as $item) {
+            $note = $item->ghi_chu;
+            if (empty($note) && $item->end_date && now()->greaterThan($item->end_date)) {
+                $note = 'Đơn đã quá thời gian trả xe nhưng chưa được duyệt/bàn giao nên tự động hết hạn.';
+            }
+
+            Booking::where('id', $item->id)->update([
+                'status' => 'EXPIRED',
+                'ghi_chu' => $note,
+            ]);
+
+            $this->releaseCarIfNoActiveBooking($item->car_id, $item->id);
+        }
+    }
+
+    private function releaseCarIfNoActiveBooking(int $carId, int $excludeBookingId): void
+    {
+        $hasOtherActive = Booking::where('car_id', $carId)
+            ->where('id', '!=', $excludeBookingId)
+            ->whereIn('status', ['PAID', 'CONFIRMED', 'IN_PROGRESS'])
+            ->exists();
+
+        if (! $hasOtherActive) {
+            Xe::where('maXe', $carId)
+                ->where('tinhTrang', 'dang_thue')
+                ->update(['tinhTrang' => 'san_sang']);
+        }
     }
 
     private function formatStaffRow(Booking $row): array

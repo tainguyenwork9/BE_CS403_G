@@ -33,6 +33,7 @@ class AuthController extends Controller
                 'hoTen' => $request->hoTen,
                 'soDienThoai' => $request->soDienThoai,
                 'email' => $request->email,
+                'diaChi' => $request->diaChi,
             ]);
 
             $token = $taiKhoan->createToken('auth_token')->plainTextToken;

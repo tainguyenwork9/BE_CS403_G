@@ -35,11 +35,7 @@ class BookingController extends Controller
     {
         $taiKhoan = $request->user();
 
-        Booking::where('user_id', $taiKhoan->maTaiKhoan)
-            ->where('status', 'PENDING_PAYMENT')
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<', now())
-            ->update(['status' => 'EXPIRED']);
+        $this->expireOverdueBookingsForUser($taiKhoan->maTaiKhoan);
 
         $query = Booking::leftJoin('xes', 'bookings.car_id', '=', 'xes.maXe')
             ->where('bookings.user_id', $taiKhoan->maTaiKhoan)
@@ -126,11 +122,7 @@ class BookingController extends Controller
                 ];
             }
 
-            Booking::where('car_id', $xe->maXe)
-                ->where('status', 'PENDING_PAYMENT')
-                ->whereNotNull('expires_at')
-                ->where('expires_at', '<', now())
-                ->update(['status' => 'EXPIRED']);
+            $this->expireOverdueBookingsForCar($xe->maXe);
 
             $hasOverlap = Booking::where('car_id', $xe->maXe)
                 ->whereIn('status', self::ACTIVE_HOLD_STATUSES)
@@ -224,12 +216,21 @@ class BookingController extends Controller
                 ];
             }
 
-            if (
-                $booking->status === 'PENDING_PAYMENT' &&
-                $booking->expires_at &&
-                now()->greaterThan($booking->expires_at)
-            ) {
-                Booking::where('id', $booking->id)->update(['status' => 'EXPIRED']);
+            $isOverduePayment = $booking->status === 'PENDING_PAYMENT'
+                && $booking->expires_at
+                && now()->greaterThan($booking->expires_at);
+
+            $isOverdueUnapproved = in_array($booking->status, ['PENDING_PAYMENT', 'PAYMENT_MISMATCH', 'PAID', 'CONFIRMED'], true)
+                && $booking->end_date
+                && now()->greaterThan($booking->end_date);
+
+            if ($isOverduePayment || $isOverdueUnapproved) {
+                Booking::where('id', $booking->id)->update([
+                    'status' => 'EXPIRED',
+                    'ghi_chu' => $booking->ghi_chu ?: ($isOverdueUnapproved
+                        ? 'Đơn đã quá thời gian trả xe nhưng chưa được duyệt/bàn giao nên tự động hết hạn.'
+                        : null),
+                ]);
                 $this->releaseCarIfNoActiveBooking($booking->car_id, $booking->id);
 
                 return [
@@ -237,7 +238,7 @@ class BookingController extends Controller
                     'body' => [
                         'status' => 0,
                         'data' => $this->formatBookingRow($this->findJoinedBooking($booking->id)),
-                        'message' => 'Đơn đặt xe đã hết hạn thanh toán nên không thể hủy.',
+                        'message' => 'Đơn đặt xe đã hết hạn nên không thể thao tác thêm.',
                     ],
                 ];
             }
@@ -378,15 +379,24 @@ class BookingController extends Controller
             ], 403);
         }
 
-        if (
-            $row->status === 'PENDING_PAYMENT' &&
-            $row->expires_at &&
-            now()->greaterThan($row->expires_at)
-        ) {
-            DB::transaction(function () use ($row) {
+        $isOverduePayment = $row->status === 'PENDING_PAYMENT'
+            && $row->expires_at
+            && now()->greaterThan($row->expires_at);
+
+        $isOverdueUnapproved = in_array($row->status, ['PENDING_PAYMENT', 'PAYMENT_MISMATCH', 'PAID', 'CONFIRMED'], true)
+            && $row->end_date
+            && now()->greaterThan($row->end_date);
+
+        if ($isOverduePayment || $isOverdueUnapproved) {
+            DB::transaction(function () use ($row, $isOverdueUnapproved) {
                 $locked = Booking::where('id', $row->id)->lockForUpdate()->first();
-                if ($locked && $locked->status === 'PENDING_PAYMENT') {
-                    Booking::where('id', $locked->id)->update(['status' => 'EXPIRED']);
+                if ($locked && in_array($locked->status, ['PENDING_PAYMENT', 'PAYMENT_MISMATCH', 'PAID', 'CONFIRMED'], true)) {
+                    Booking::where('id', $locked->id)->update([
+                        'status' => 'EXPIRED',
+                        'ghi_chu' => $locked->ghi_chu ?: ($isOverdueUnapproved
+                            ? 'Đơn đã quá thời gian trả xe nhưng chưa được duyệt/bàn giao nên tự động hết hạn.'
+                            : null),
+                    ]);
                     $this->releaseCarIfNoActiveBooking($locked->car_id, $locked->id);
                 }
             });
@@ -485,6 +495,68 @@ class BookingController extends Controller
                 'xes.hinhAnh as xe_hinhAnh'
             )
             ->first();
+    }
+
+    private function expireOverdueBookingsForUser(int $userId): void
+    {
+        $overdueBookings = Booking::where('user_id', $userId)
+            ->where(function ($q) {
+                $q->where(function ($q1) {
+                    $q1->where('status', 'PENDING_PAYMENT')
+                        ->whereNotNull('expires_at')
+                        ->where('expires_at', '<', now());
+                })->orWhere(function ($q2) {
+                    $q2->whereIn('status', ['PENDING_PAYMENT', 'PAYMENT_MISMATCH', 'PAID', 'CONFIRMED'])
+                        ->whereNotNull('end_date')
+                        ->where('end_date', '<', now());
+                });
+            })
+            ->get();
+
+        foreach ($overdueBookings as $item) {
+            $note = $item->ghi_chu;
+            if (empty($note) && $item->end_date && now()->greaterThan($item->end_date)) {
+                $note = 'Đơn đã quá thời gian trả xe nhưng chưa được duyệt/bàn giao nên tự động hết hạn.';
+            }
+
+            Booking::where('id', $item->id)->update([
+                'status' => 'EXPIRED',
+                'ghi_chu' => $note,
+            ]);
+
+            $this->releaseCarIfNoActiveBooking($item->car_id, $item->id);
+        }
+    }
+
+    private function expireOverdueBookingsForCar(int $carId): void
+    {
+        $overdueBookings = Booking::where('car_id', $carId)
+            ->where(function ($q) {
+                $q->where(function ($q1) {
+                    $q1->where('status', 'PENDING_PAYMENT')
+                        ->whereNotNull('expires_at')
+                        ->where('expires_at', '<', now());
+                })->orWhere(function ($q2) {
+                    $q2->whereIn('status', ['PENDING_PAYMENT', 'PAYMENT_MISMATCH', 'PAID', 'CONFIRMED'])
+                        ->whereNotNull('end_date')
+                        ->where('end_date', '<', now());
+                });
+            })
+            ->get();
+
+        foreach ($overdueBookings as $item) {
+            $note = $item->ghi_chu;
+            if (empty($note) && $item->end_date && now()->greaterThan($item->end_date)) {
+                $note = 'Đơn đã quá thời gian trả xe nhưng chưa được duyệt/bàn giao nên tự động hết hạn.';
+            }
+
+            Booking::where('id', $item->id)->update([
+                'status' => 'EXPIRED',
+                'ghi_chu' => $note,
+            ]);
+
+            $this->releaseCarIfNoActiveBooking($item->car_id, $item->id);
+        }
     }
 
     private function releaseCarIfNoActiveBooking(int $carId, int $excludeBookingId): void

@@ -95,19 +95,21 @@ class ProfileController extends Controller
             'ngayGui' => now(),
         ];
 
+        $baseHost = $request->getSchemeAndHttpHost();
+
         if ($request->hasFile('anhCCCDMatTruoc')) {
             $path = $request->file('anhCCCDMatTruoc')->store('profiles/' . $khachHang->maKhachHang, 'public');
-            $payload['anhCCCDMatTruoc'] = Storage::url($path);
+            $payload['anhCCCDMatTruoc'] = $baseHost . Storage::url($path);
         }
 
         if ($request->hasFile('anhCCCDMatSau')) {
             $path = $request->file('anhCCCDMatSau')->store('profiles/' . $khachHang->maKhachHang, 'public');
-            $payload['anhCCCDMatSau'] = Storage::url($path);
+            $payload['anhCCCDMatSau'] = $baseHost . Storage::url($path);
         }
 
         if ($request->hasFile('anhGPLX')) {
             $path = $request->file('anhGPLX')->store('profiles/' . $khachHang->maKhachHang, 'public');
-            $payload['anhGPLX'] = Storage::url($path);
+            $payload['anhGPLX'] = $baseHost . Storage::url($path);
         }
 
         HoSoXacThuc::where('maHoSo', $hoSo->maHoSo)->update($payload);

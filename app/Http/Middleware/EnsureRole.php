@@ -17,7 +17,7 @@ class EnsureRole
 
         if (! $user || ! in_array($user->vaiTro, $roles, true)) {
             return response()->json([
-                'status' => false,
+                'status' => 0,
                 'message' => 'Bạn không có quyền truy cập.',
                 'data' => null,
             ], 403);

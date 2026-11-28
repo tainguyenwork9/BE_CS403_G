@@ -27,7 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (ValidationException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json([
-                    'status' => false,
+                    'status' => 0,
                     'message' => $e->getMessage(),
                     'data' => $e->errors(),
                 ], 422);
@@ -37,7 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (AuthenticationException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json([
-                    'status' => false,
+                    'status' => 0,
                     'message' => 'Chưa xác thực hoặc phiên đăng nhập đã hết hạn.',
                     'data' => null,
                 ], 401);
