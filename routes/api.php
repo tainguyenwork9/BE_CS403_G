@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\StaffBookingController;
 use App\Http\Controllers\VehicleController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,15 +27,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile', [ProfileController::class, 'updateProfile']);
     Route::post('/profile/upload-docs', [ProfileController::class, 'uploadDocs']);
 
-    // Endpoint quản lý & tạo đơn đặt xe cho khách hàng đã xác thực
+    // Endpoint quản lý & tạo đơn đặt xe cho khách hàng đã xác thực (PB08, PB10, PB12, PB13)
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
+    Route::get('/bookings/{id}/rebook-info', [BookingController::class, 'rebookInfo']);
 
     Route::middleware('role:nhan_vien,admin')->group(function () {
         Route::get('/admin/profiles', [AdminProfileController::class, 'getProfiles']);
         Route::get('/admin/profiles/pending', [AdminProfileController::class, 'getPendingProfiles']);
         Route::post('/admin/profiles/update-status', [AdminProfileController::class, 'updateStatus']);
+
+        // Endpoint quản lý toàn bộ đơn đặt xe dành cho nhân viên vận hành (PB11)
+        Route::get('/staff/bookings', [StaffBookingController::class, 'index']);
+        Route::patch('/staff/bookings/{id}/status', [StaffBookingController::class, 'updateStatus']);
     });
 
     Route::middleware('role:admin')->group(function () {
