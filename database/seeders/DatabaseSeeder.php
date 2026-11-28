@@ -212,8 +212,6 @@ class DatabaseSeeder extends Seeder
 
     protected function seedVehicles(): void
     {
-        $defaultImage = 'https://images.unsplash.com/photo-1591637333184-19aa84b3e01f?auto=format&fit=crop&w=1200&q=85';
-
         $vehicles = [
             [
                 'tenXe' => 'Honda Vision',
@@ -224,7 +222,7 @@ class DatabaseSeeder extends Seeder
                 'giaThue' => 120000,
                 'loaiXe' => 'Xe tay ga',
                 'tinhTrang' => 'san_sang',
-                'hinhAnh' => $defaultImage,
+                'hinhAnh' => 'https://cdn.honda.com.vn/motorbike-versions/Image360/December2025/1765585834/0.png',
             ],
             [
                 'tenXe' => 'Yamaha Exciter 155',
@@ -235,7 +233,7 @@ class DatabaseSeeder extends Seeder
                 'giaThue' => 180000,
                 'loaiXe' => 'Xe côn tay',
                 'tinhTrang' => 'san_sang',
-                'hinhAnh' => $defaultImage,
+                'hinhAnh' => 'https://yamaha-motor.com.vn/wp/wp-content/uploads/2026/10/D199_Exciter-155_SMY-Den-Xanh-Bong_Goc-4-hires-768x645.png',
             ],
             [
                 'tenXe' => 'Honda Winner X',
@@ -246,7 +244,7 @@ class DatabaseSeeder extends Seeder
                 'giaThue' => 170000,
                 'loaiXe' => 'Xe côn tay',
                 'tinhTrang' => 'san_sang',
-                'hinhAnh' => $defaultImage,
+                'hinhAnh' => 'https://cdn.honda.com.vn/motorbike-versions/Image360/September2025/1757787378/0.png',
             ],
             [
                 'tenXe' => 'Yamaha Janus',
@@ -257,7 +255,7 @@ class DatabaseSeeder extends Seeder
                 'giaThue' => 100000,
                 'loaiXe' => 'Xe tay ga',
                 'tinhTrang' => 'san_sang',
-                'hinhAnh' => $defaultImage,
+                'hinhAnh' => 'https://yamaha-motor.com.vn/wp/wp-content/uploads/2025/12/Janus_Limited_Xam-Bong_G4-768x645.png',
             ],
             [
                 'tenXe' => 'Honda Air Blade 160',
@@ -268,7 +266,7 @@ class DatabaseSeeder extends Seeder
                 'giaThue' => 160000,
                 'loaiXe' => 'Xe tay ga',
                 'tinhTrang' => 'san_sang',
-                'hinhAnh' => $defaultImage,
+                'hinhAnh' => 'https://cdn.honda.com.vn/motorbike-versions/Image360/November2025/1762148885/0.png',
             ],
             [
                 'tenXe' => 'Honda Cub 50',
@@ -279,7 +277,7 @@ class DatabaseSeeder extends Seeder
                 'giaThue' => 90000,
                 'loaiXe' => 'Xe số',
                 'tinhTrang' => 'dang_thue',
-                'hinhAnh' => $defaultImage,
+                'hinhAnh' => 'https://cdn.honda.com.vn/motorbike-versions/July2024/4mvfY4O7TXBSDullbfAZ.png',
             ],
         ];
 
